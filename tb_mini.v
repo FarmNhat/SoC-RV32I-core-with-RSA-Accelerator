@@ -1,5 +1,5 @@
 `timescale 1ps/1ps
-`include "montgomery.v"
+`include "top.v"
 
 module tb_rsa_mod_exp;
 
