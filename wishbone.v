@@ -1,11 +1,29 @@
 `include "top.v"
 
+/*
+    trong risc v:
+    sw x5, 8(x10)
+    Bus:
+        wb_we_i = 1
+        wb_adr_i = base + 8
+        wb_dat_i = x5
+    slave:
+        data <= wb_dat_i
+        ack = 1
+
+    lw x6, 4(x10)
+    slave: 
+        wb_dat_o <= status
+        ack = 1
+    
+*/
+
 module wb_rsa #(
     parameter WIDTH = 32,
     parameter E_BITS = 32
 )(
-    input clk,
     input rst,
+    input clk,
 
     // Wishbone
     // mấy port này sẽ kết nối thẳng với cpu để quản lý
@@ -15,8 +33,8 @@ module wb_rsa #(
     input [31:0] wb_dat_i,
     output reg [31:0] wb_dat_o,
     input wb_we_i,
-    input wb_stb_i,
-    input wb_cyc_i,
+
+    input rsa_en,  // enable cho module rsa
     output reg wb_ack_o
 );
 
@@ -37,18 +55,21 @@ wire [WIDTH-1:0] C;
 //////////////////////////
 // Wishbone handshake
 //////////////////////////
-
+ 
 always @(posedge clk) begin
     wb_ack_o <= 0;
 
-    if(wb_stb_i && wb_cyc_i && !wb_ack_o) begin
+    if(rsa_en && !wb_ack_o) begin
         wb_ack_o <= 1;
 
         if(wb_we_i) begin   // này dùng khi gặp lệnh store, có thể đưa trực tiếp vào riscv datapath
             case(wb_adr_i[5:2]) // bỏ 2 bit đầu do là 1 byte 4 bit
                 // điều khiển rsa theo từng addr 2,3,4,5,6
                 0: start     <= wb_dat_i[0];
-                2: M         <= wb_dat_i;
+                2: begin 
+                    M         <= wb_dat_i;
+                    start     <= 1;  // bắt đầu khi nạp M xong
+                end
                 3: E         <= wb_dat_i;
                 4: N         <= wb_dat_i;
                 5: N_INV     <= wb_dat_i;
@@ -76,13 +97,10 @@ end
 always @(posedge clk) begin
     if(rst)
         start <= 0;
-    else if(done)
+    else if(start)
         start <= 0;   // tránh retrigger
 end
 
-//////////////////////////
-// Instantiate RSA
-//////////////////////////
 
 rsa #(
     .WIDTH(WIDTH),
