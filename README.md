@@ -145,7 +145,7 @@ T < N × R
 
 - Các số cần chuẩn bị sẵn (có thể nạp sẵn vào bộ nhớ nếu triển khai SoC): N, N_INV, R2_MOD_N, Các số này được tính toán 1 lần ở phần mềm sau đó sử dụng cho mọi Input
 
-- Cách chuẩn bị ngoài module
+- Các giá trị sau phải tính trước bằng phần mềm (Python/C): 
 
 R          = 2^WIDTH
 
@@ -153,4 +153,3 @@ N_INV      = -N^{-1} mod R
 
 R2_MOD_N   = (R * R) mod N
 
-Các giá trị này phải tính trước bằng phần mềm (Python/C)
