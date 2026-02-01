@@ -1,4 +1,4 @@
-`include "top.v"
+`include "rsa.v"
 
 /*
     trong risc v:
@@ -38,10 +38,6 @@ module wb_rsa #(
     output reg wb_ack_o
 );
 
-//////////////////////////
-// Registers
-//////////////////////////
-
 reg start;
 wire done;
 
@@ -54,7 +50,6 @@ wire [WIDTH-1:0] C;
 
 //////////////////////////
 // Wishbone handshake
-//////////////////////////
  
 always @(posedge clk) begin
     wb_ack_o <= 0;
@@ -92,7 +87,7 @@ end
 
 //////////////////////////
 // Auto-clear start (QUAN TRỌNG)
-//////////////////////////
+
 
 always @(posedge clk) begin
     if(rst)

@@ -55,7 +55,7 @@ module DatapathSingleCycle (
     input         [`REG_SIZE:0]  load_data_from_dmem,
     output reg    [`REG_SIZE:0]  store_data_to_dmem,
     output reg    [        3:0]  store_we_to_dmem,
-
+    input      ack_from_rsa,
     output reg rsa_en,
     output reg mem_en
 );
@@ -102,7 +102,14 @@ module DatapathSingleCycle (
   always @(posedge clk) begin
     if (rst) begin
       pcCurrent <= 32'd0;
-    end else begin
+    end 
+    else if(rsa_en) begin
+      if (ack_from_rsa)
+        pcCurrent <= pcNext; // cập nhật PC khi RSA hoàn thành
+      else
+        pcCurrent <= pcCurrent; // giữ nguyên PC khi RSA đang hoạt động
+    end
+    else begin
       pcCurrent <= pcNext;
     end
   end
@@ -232,8 +239,14 @@ module DatapathSingleCycle (
         regfile_we   = 1'b1;
         addr_to_dmem = rs1_data + imm_i_sext;
         
-        if(addr_to_dmem[19:16] != 4'h4) rsa_en = 1'b1;
-        else rsa_en = 1'b0;
+        if(addr_to_dmem[19:16] != 4'h4) begin 
+          rsa_en = 1'b1;
+          mem_en = 1'b0;
+        end
+        else begin
+          rsa_en = 1'b0;
+          mem_en = 1'b1;
+        end
 
         case (inst_funct3)
           3'b000: wb_data = {{24{load_data_from_dmem[7]}}, load_data_from_dmem[7:0]}; // LB
@@ -251,8 +264,14 @@ module DatapathSingleCycle (
       OpStore: begin
         addr_to_dmem = rs1_data + imm_s_sext;
 
-        if(addr_to_dmem[19:16] != 4'h4) rsa_en = 1'b1;
-        else rsa_en = 1'b0;
+        if(addr_to_dmem[19:16] != 4'h4) begin 
+          rsa_en = 1'b1;
+          mem_en = 1'b0;
+        end
+        else begin
+          rsa_en = 1'b0;
+          mem_en = 1'b1;
+        end
 
         case (inst_funct3)
           3'b000: begin // SB

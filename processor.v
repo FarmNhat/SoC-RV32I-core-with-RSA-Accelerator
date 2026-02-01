@@ -3,7 +3,7 @@
 // ============================================================================
 
 `include "wishbone.v" 
-`include "RV32I_single.v"
+`include "RV32I_core.v"
 
 module Processor (
     input  clock_proc,
@@ -14,7 +14,7 @@ module Processor (
 
   wire [`REG_SIZE:0] pc_to_imem, inst_from_imem, mem_data_addr, mem_data_loaded_value, mem_data_to_write;
   wire [        3:0] mem_data_we;
-  wire rsa_en, mem_en;
+  wire rsa_en, mem_en, ack_from_rsa;
 
   MemorySingleCycle #(
       .NUM_WORDS(8192)
@@ -38,7 +38,7 @@ module Processor (
     .wb_dat_o     (mem_data_loaded_value),
     .wb_we_i      (|mem_data_we),
     .rsa_en       (rsa_en),
-    .wb_ack_o     ()
+    .wb_ack_o     (ack_from_rsa)
   );
 
   InstMemory imem (
@@ -58,6 +58,7 @@ module Processor (
     .store_we_to_dmem    (mem_data_we),
     .load_data_from_dmem (mem_data_loaded_value),
     .halt                (halt),
+    .ack_from_rsa        (ack_from_rsa),
     .rsa_en              (rsa_en),
     .mem_en              (mem_en)
   );
