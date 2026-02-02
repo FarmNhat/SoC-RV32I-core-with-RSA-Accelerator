@@ -75,11 +75,13 @@ C = M^e \bmod N
 * Bộ nhân modulo
 * Bộ lũy thừa modulo (Modular Exponentiation)
 * FSM điều khiển các bước tính toán
+* BUS cho quản lý đọc ghi (có ACK sau khi ghi) tránh xung đột phần cứng
 
 **Vai trò trong SoC**:
 
 * Giảm tải cho CPU khi thực hiện RSA
 * Tăng tốc đáng kể so với việc tính toán hoàn toàn bằng phần mềm
+* Quản lý đọc ghi vùng nhớ ngoại vi
 
 ---
 
@@ -90,6 +92,7 @@ C = M^e \bmod N
 | Khối              | Vai trò                                  |
 | ----------------- | ---------------------------------------- |
 | RV32I Core        | Điều khiển, chạy firmware, quản lý luồng |
+| Wishbone          | Bus - đồng bộ đọc ghi ở vùng nhớ ngoại vi|
 | RSA Accelerator   | Thực hiện phép toán mật mã nặng          |
 | Processor Wrapper | Kết nối và điều phối các module          |
 
@@ -102,21 +105,6 @@ Thiết kế này tuân theo triết lý **hardware/software co-design**:
 
 ## 4. Nguyên lý hoạt động tổng thể
 
-### 4.1. Luồng thực thi
-
-1. CPU RV32I fetch và execute chương trình
-2. Khi cần mã hóa/giải mã RSA:
-
-   * CPU ghi dữ liệu (M, e, N) vào thanh ghi của RSA
-3. CPU kích hoạt tín hiệu `start`
-4. Khối RSA:
-
-   * Thực hiện modular exponentiation
-   * Chạy FSM nội bộ cho đến khi hoàn tất
-5. RSA trả về kết quả và bật cờ `done`
-6. CPU đọc kết quả và tiếp tục chương trình
-
----
 
 ### 4.2. Vai trò của phần cứng tăng tốc
 
@@ -133,34 +121,33 @@ Với RSA accelerator:
 
 ---
 
-## 5. Điểm nổi bật của SoC
+## 5. Sử dụng với firmware
 
-* ✅ Thiết kế **module hóa**, dễ mở rộng
-* ✅ Kết hợp **RISC-V + Crypto Accelerator** thực tế
-* ✅ Phù hợp cho:
+### 5.1. Phân vùng bộ nhớ:
 
-  * Đồ án kiến trúc máy tính
-  * Nghiên cứu tăng tốc mật mã
-  * FPGA prototyping
+- Bộ nhớ lệnh được tách riêng trong `InstMemory`.
+- Bộ nhớ RAM được đặt riêng `MemorySingleCycle` có thể truy xuất toàn bộ địa chỉ trừ địa chỉ ngoại vi (h'0004_xxxx).
+- Vùng nhớ ngoại vi (h'0004_xxxx) nơi để module tăng tốc RSA hoạt động và có thể khai thác thêm cho những module khác trong tương lai.
 
----
+### 5.2. Luồng thực thi
 
-## 6. Hướng mở rộng trong tương lai
+1. CPU RV32I fetch và execute chương trình
+2. Khi cần mã hóa/giải mã RSA:
 
-* Thêm bus chuẩn (AXI-lite / Wishbone)
-* Hỗ trợ RV32IM (M-extension)
-* Tăng tốc thêm AES / SHA
-* Tối ưu RSA bằng Montgomery Multiplication
+   * CPU ghi dữ liệu (M, e, N) vào thanh ghi của RSA
+3. CPU kích hoạt tín hiệu `start`
+4. Khối RSA:
 
----
+   * Thực hiện modular exponentiation
+   * Chạy FSM nội bộ cho đến khi hoàn tất
+5. RSA trả về kết quả và bật cờ `done`
+6. CPU đọc kết quả và tiếp tục chương trình
 
-## 7. Kết luận
 
-SoC này minh họa rõ ràng cách xây dựng một hệ thống hoàn chỉnh:
+## 6. Kết luận
 
-> **CPU tổng quát + Accelerator chuyên dụng = Hiệu năng cao & thiết kế gọn gàng**
-
-Đây là nền tảng rất tốt để tiếp tục phát triển các SoC phục vụ bảo mật và nhúng.
+- SoC là xu hướng của chip hiện đại, tích hợp module mã hóa và quản lý theo ánh xạ địa chỉ cùng quản lý bus đảm bảo sự hoạt động trơn tru cho hệ thống.
+- Kiến trúc này cũng rất dễ mở rộng với các bộ tăng tốc và ngoại vi khác.
 
 ---
 
