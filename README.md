@@ -52,83 +52,7 @@ T < N × R
 | `R2_MOD_N` | `R² mod N` |
 
 ---
-
-### 4. Module montgomery_reduce
-- Thực hiện: result = T × R⁻¹ mod N
-
-- Thuật toán phần cứng:
-
-  m = (T mod R) × N_INV mod R
-  
-  t = (T + m×N) / R
-  
-  if t ≥ N → result = t − N
-  
-  else      result = t
-  
-  FSM nội bộ
-  
-  State	Chức năng
-  
-  IDLE	Chờ start
-  
-  CALC_M	Tính m
-  
-  CALC_T	Tính t và xuất kết quả
-
----
-### 5. Module montgomery_mul
-
-
-- Tính: result = A × B × R⁻¹ mod N
-- Hoạt động: T = A × B
-
-### 6. Module rsa
-- Thực hiện: C = M^E mod N bằng square-and-multiply trong miền Montgomery
-
-
-- Chuyển sang miền Montgomery
-  
-  M̄ = Mont(M × R² mod N)
-  
-  1̄ = Mont(1 × R² mod N)
-
-- Square & Multiply với từng bit của E từ MSB → LSB:
-
-  res = res × res
-  
-  if E[i] == 1:
-  
-  res = res × M̄
-  
-  (Montgomery multiply)
-  
-  Chuyển về miền thường
-  
-  C = Mont(res × 1)
-
-- FSM module RSA:
-
-  State	Ý nghĩa
-  
-  IDLE	Chờ start
-  
-  CONV_M	Đưa M vào Montgomery
-  
-  CONV_R	Khởi tạo result
-  
-  LOOP_START	Bắt đầu vòng lặp
-  
-  SQUARE_WAIT	Chờ bình phương
-  
-  MULT_WAIT	Chờ nhân
-  
-  REDUCE_START	Thoát Montgomery
-  
-  REDUCE_WAIT	Xuất kết quả
-
----
-### 7. Lưu ý quan trọng
+### 4. Lưu ý quan trọng
 
 - N bắt buộc là số lẻ
 
@@ -138,7 +62,7 @@ T < N × R
 
 - Không được giữ start = 1 liên tục → sẽ bị loop vô hạn
 
-### 8. Sử dụng
+### 5. Sử dụng
 - Input một chuỗi M
 
 - Output là cipher text
