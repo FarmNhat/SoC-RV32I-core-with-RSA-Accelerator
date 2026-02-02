@@ -2,7 +2,7 @@
 // PROCESSOR TOP LEVEL
 // ============================================================================
 
-`include "wishbone.v" 
+`include "rsa.v" 
 `include "RV32I_core.v"
 
 module Processor (

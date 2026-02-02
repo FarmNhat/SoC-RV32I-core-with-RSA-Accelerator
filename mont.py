@@ -45,7 +45,7 @@ def rsa_mod_exp(M, E, N, WIDTH):
 
 if __name__ == "__main__":
     # ===== INPUT =====
-    s = "nhatnhat"
+    s = "phong"
 
     M = 0
     for ch in s:

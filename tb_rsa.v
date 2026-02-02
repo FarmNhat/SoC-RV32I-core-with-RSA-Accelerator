@@ -1,5 +1,5 @@
 `timescale 1ps/1ps
-`include "top.v"
+`include "rsa.v"
 
 module tb_rsa_mod_exp;
 
@@ -46,7 +46,7 @@ module tb_rsa_mod_exp;
         start = 0;
 
         // Test vector
-        M         = "nhatnhat";
+        M         = "phong";
         E         = 64'd4;
         N         = 64'd11;
         N_INV     = 64'd15092790605762360413; // -17^{-1} mod 2^32

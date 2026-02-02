@@ -5,7 +5,107 @@
 `define OPCODE_SIZE 6
 
 
-`include "cla.v" 
+///////////////////////////// CLA MODULES ////////////////////////////
+
+module gp1(input wire a, b,
+output wire g, p);
+assign g = a & b;
+assign p = a | b;
+endmodule
+
+
+module gp4(input wire [3:0] gin, pin,
+input wire cin,
+output wire gout, pout,
+output wire [2:0] cout);
+
+
+assign cout[0] = gin[0] | (pin[0] & cin);
+assign cout[1] = gin[1] | (pin[1] & gin[0]) | (pin[1] & pin[0] & cin);
+assign cout[2] = gin[2] | (pin[2] & gin[1]) | (pin[2] & pin[1] & gin[0]) |  (pin[2] & pin[1] & pin[0] & cin);
+
+assign pout = &pin; 
+assign gout = gin[3] | (pin[3] & gin[2]) | 
+              (pin[3] & pin[2] & gin[1]) | 
+              (pin[3] & pin[2] & pin[1] & gin[0]);   
+endmodule
+
+
+module gp8(input wire [7:0] gin, pin,
+input wire cin,
+output wire gout, pout,
+output wire [6:0] cout);
+
+
+wire [1:0] g4, p4;
+wire [2:0] c_low, c_high;
+wire       carry4;
+
+// Lower 4 bits
+gp4 gp_low (
+    .gin(gin[3:0]),
+    .pin(pin[3:0]),
+    .cin(cin),
+    .gout(g4[0]),
+    .pout(p4[0]),
+    .cout(c_low));
+
+assign carry4 = g4[0] | (p4[0] & cin);
+
+ // Upper 4 bits
+ gp4 gp_high (
+    .gin(gin[7:4]),
+    .pin(pin[7:4]),
+    .cin(carry4),
+    .gout(g4[1]),
+    .pout(p4[1]),
+    .cout(c_high)
+);
+
+assign cout = {c_high, carry4, c_low};
+assign pout = p4[1] & p4[0];
+assign gout = g4[1] | (p4[1] & g4[0]);
+endmodule
+
+module cla
+(input wire [31:0]  a, b,
+input wire         cin,
+output wire [31:0] sum);
+
+
+wire [31:0] gin, pin;
+wire [3:0]  g8, p8;
+wire [30:0] c;
+wire [2:0]  carry8;
+
+genvar i;
+generate
+for (i = 0; i < 32; i = i + 1) begin : GP1
+gp1 gp1_inst (.a(a[i]), .b(b[i]), .g(gin[i]), .p(pin[i]));
+end
+endgenerate
+
+// 8-bit group blocks
+gp8 gp8_0 (.gin(gin[7:0]),   .pin(pin[7:0]),   .cin(cin),        .gout(g8[0]), .pout(p8[0]), .cout(c[6:0]));
+gp8 gp8_1 (.gin(gin[15:8]),  .pin(pin[15:8]),  .cin(carry8[0]),  .gout(g8[1]), .pout(p8[1]), .cout(c[14:8]));
+gp8 gp8_2 (.gin(gin[23:16]), .pin(pin[23:16]), .cin(carry8[1]),  .gout(g8[2]), .pout(p8[2]), .cout(c[22:16]));
+gp8 gp8_3 (.gin(gin[31:24]), .pin(pin[31:24]), .cin(carry8[2]),  .gout(g8[3]), .pout(p8[3]), .cout(c[30:24]));
+
+
+assign carry8[0] = g8[0] | (p8[0] & cin);
+assign carry8[1] = g8[1] | (p8[1] & carry8[0]);
+assign carry8[2] = g8[2] | (p8[2] & carry8[1]);
+
+assign c[7]  = carry8[0];
+assign c[15] = carry8[1];
+assign c[23] = carry8[2];
+
+assign sum[0] = a[0] ^ b[0] ^ cin;
+assign sum[31:1] = a[31:1] ^ b[31:1] ^ c[30:0];
+endmodule
+
+
+/////////////////// RISCV32I SINGLE CYCLE DATAPATH ///////////////////
 
 
 module RegFile (
@@ -42,9 +142,7 @@ module RegFile (
   end
 endmodule
 
-// ============================================================================
-// 4. DATAPATH SINGLE CYCLE
-// ============================================================================
+
 module DatapathSingleCycle (
     input                        clk,
     input                        rst,
@@ -60,7 +158,7 @@ module DatapathSingleCycle (
     output reg mem_en
 );
 
-  // components of the instruction
+  
   wire [          6:0] inst_funct7;
   wire [          4:0] inst_rs2;
   wire [          4:0] inst_rs1;
@@ -136,28 +234,18 @@ module DatapathSingleCycle (
     .rs2_data (rs2_data)
   );
 
-  // --- CLA Integration (ADD/SUB) ---
+  //--- CLA Integration ---
   wire [31:0] cla_result;
   cla alu_adder (
         .a   (rs1_data),
-        .b   (~rs2_data), // Mặc định wiring cho phép trừ hoặc so sánh, logic case sẽ quyết định dùng hay không
+        .b   (~rs2_data), 
         .cin (1'b1),
         .sum (cla_result)
   );
 
-  // ==========================================================================
-  // LOGIC T�?CH HỢP MODULE DIVIDER
-  // ==========================================================================
+ 
   
-  // 1. Xác định loại phép chia (Có dấu hay Không dấu)
-  // Trong R-type M-extension: 
-  // DIV (100) / REM (110) -> Signed
-  // DIVU (101) / REMU (111) -> Unsigned
-  // Bit 0 của funct3 quyết định dấu (0: Signed, 1: Unsigned)
-  // wire is_div_instruction = (inst_opcode == OpRegReg) && (inst_funct7 == 7'b0000001);
-  // wire div_is_signed      = is_div_instruction && (~inst_funct3[0]); 
-
-  // // 2. Chuẩn bị dữ liệu đầu vào (Lấy trị tuyệt đối nếu là phép chia có dấu)
+ 
   // wire op1_is_neg = div_is_signed && rs1_data[31];
   // wire op2_is_neg = div_is_signed && rs2_data[31];
 
@@ -167,7 +255,7 @@ module DatapathSingleCycle (
   // wire [31:0] div_out_q_raw;
   // wire [31:0] div_out_r_raw;
 
-  // // 3. G�?i Module DIV
+  
   // div divider_inst (
   //     .a(div_in_a),
   //     .b(div_in_b),
@@ -175,16 +263,12 @@ module DatapathSingleCycle (
   //     .r(div_out_r_raw)
   // );
 
-  // // 4. Xử lý kết quả đầu ra (�?ổi dấu lại nếu cần)
-  // // Quy tắc RISC-V:
-  // // Quotient:  Dấu = Sign(A) XOR Sign(B)
-  // // Remainder: Dấu = Sign(A)
   // wire [31:0] div_final_q = ((op1_is_neg ^ op2_is_neg)) ? -div_out_q_raw : div_out_q_raw;
   // wire [31:0] div_final_r = (op1_is_neg)                ? -div_out_r_raw : div_out_r_raw;
 
   // ==========================================================================
 
-  // --- Main Control / Datapath Logic ---
+  
   always @(*) begin
     illegal_inst       = 1'b0;
     regfile_we         = 1'b0;
@@ -349,7 +433,7 @@ module DatapathSingleCycle (
             //if(inst_funct7 == 7'd1) wb_data = div_final_r; // REMU
                        wb_data = rs1_data & rs2_data; // AND
           end
-          // -----------------------------
+          
           
           default: illegal_inst = 1'b1;
         endcase
@@ -362,7 +446,7 @@ module DatapathSingleCycle (
       end
 
       OpMiscMem: begin
-        // FENCE - No Op in single cycle
+        
       end
 
       default: begin
